@@ -10,7 +10,7 @@
 #include "cgen.h"
 
 int ifcnt = 1;//global variable that will be used for labels of whiles and ifs unique id 
-stack *stackloh;//stack where will be stored value of if or while that is currently being processed 
+stack *index_stack;//stack where will be stored value of if or while that is currently being processed
 
 /**
  * Creating header and all needed for further code creation and proceeding of all functions
@@ -22,7 +22,7 @@ stack *stackloh;//stack where will be stored value of if or while that is curren
 void CgenStart(ASTStart *code) {
   fprintf(stdout, ".IFJcode24\n");//header of a file that's needed for interpret 
   fprintf(stdout,
-          "DEFVAR GF@lefttrue\nDEFVAR GF@righttrue\nDEFVAR GF@inputread\n");//auxiliary variables for logic expr. and for ifj.read 
+          "DEFVAR GF@lefttrue\nDEFVAR GF@righttrue\nDEFVAR GF@inputread\n");//auxiliary variables for logic Expr. and for ifj.read
   fprintf(stdout, "DEFVAR GF@str1\nDEFVAR GF@str2\n");//auxiliary variables for 2 strings in function 
   fprintf(stdout, "DEFVAR GF@cnt\nDEFVAR GF@length1\nDEFVAR GF@length2\n");//auxiliary variables for length and some counter 
   fprintf(stdout, "DEFVAR GF@notnullable\n");//auxiliary variable for | | parts of code
@@ -30,15 +30,15 @@ void CgenStart(ASTStart *code) {
   fprintf(stdout, "DEFVAR GF@$iftrue\nDEFVAR GF@%%retval\n");//auxiliary variables for logic part and return value 
   fprintf(stdout, "CALL $$main\n");//so we won't be dependent of order of functions 
   fprintf(stdout, "EXIT int@0 \n\n");//end of whole code will always be here(in right confitions) 
-  stackloh = InvokeAlloc(sizeof(stack));
-  InitStack(stackloh);
+  index_stack = InvokeAlloc(sizeof(stack));
+  InitStack(index_stack);
   ASTFuncDecl *func = code->funcdecls;
   while (func != NULL) {//functions well be in linked list, so we need to proceed them all 
     CgenFuncDecl(func);
     func = func->next;
     fprintf(stdout, "\n");//tabulation for better readability 
   }
-  InvokeFree(stackloh);
+  InvokeFree(index_stack);
 }
 
 /**
@@ -49,11 +49,11 @@ void CgenStart(ASTStart *code) {
  * @return
  */
 void CgenParam(ASTParam *param) {
-  int intik = 1;
+  int param_counter = 1;
   while (param != NULL) {//unlike all variables that will be used in function, here we know their value, and it will be const. 
     fprintf(stdout, "DEFVAR LF@%s\n", param->name);
-    fprintf(stdout, "MOVE LF@%s LF@%%%i\n", param->name, intik);
-    intik++;
+    fprintf(stdout, "MOVE LF@%s LF@%%%i\n", param->name, param_counter);
+    param_counter++;
     param = param->next;
   }
 }
@@ -88,7 +88,7 @@ void CgenFuncDecl(ASTFuncDecl *func) {
 }
 
 /**
- * Proceeding of expr in postfix notation
+ * Proceeding of Expr in postfix notation
  *
  * @param expr pointer to the stack where all elements of expt is contained
  * @param callfromfunc bool for indication is it called from function (part of funexp extension)
@@ -96,8 +96,8 @@ void CgenFuncDecl(ASTFuncDecl *func) {
  * @return
  */
 void CgenExpr(ASTExpression *expr, bool callfromfunc) {//we use postfix notation because it's easier to make in assembly due properties of stack.
-  expr_data *item = TopStack(expr->exprStack);
-  while (!IsEmptyStack(expr->exprStack)) {//until this stack isn't empty expr continuos
+  Expr_data *item = TopStack(expr->exprStack);
+  while (!IsEmptyStack(expr->exprStack)) {//until this stack isn't empty Expr continuos
     switch (item->type) {
     case (O_MUL)://both mul and div are in the same place 
       if (item->data.token->type == T_MUL) {
@@ -118,35 +118,35 @@ void CgenExpr(ASTExpression *expr, bool callfromfunc) {//we use postfix notation
       if (item->data.token->type == T_LT) {
         fprintf(stdout, "LTS\n");
         fprintf(stdout, "PUSHS bool@true\n");
-        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(index_stack));
       } else if (item->data.token->type == T_GT) {
         fprintf(stdout, "GTS\n");
         fprintf(stdout, "PUSHS bool@true\n");
-        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(index_stack));
       } else if (item->data.token->type == T_EQ) {
         fprintf(stdout, "EQS\n");
         fprintf(stdout, "PUSHS bool@true\n");
-        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(index_stack));
       } else if (item->data.token->type == T_NEQ) {
         fprintf(stdout, "EQS\n");
         fprintf(stdout, "PUSHS bool@false\n");
-        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFNEQS $else%d\n", *(int *)TopStack(index_stack));
       } else if (item->data.token->type == T_LEQ) {//because there is no <= in assembly we do it in parts
         fprintf(stdout, "POPS GF@righttrue\n");//here we put both sides in auxiliary vars
         fprintf(stdout, "POPS GF@lefttrue\n");
         fprintf(stdout, "LT GF@$iftrue GF@lefttrue  GF@righttrue\n");//firstly we check <
-        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(index_stack));
         fprintf(stdout, "EQ GF@$iftrue GF@lefttrue  GF@righttrue\n");//if it's not <, it still can be =
-        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(stackloh));
-        fprintf(stdout, "JUMP $else%d\n", *(int *)TopStack(stackloh));//if it's > we do else
+        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(index_stack));
+        fprintf(stdout, "JUMP $else%d\n", *(int *)TopStack(index_stack));//if it's > we do else
       } else if (item->data.token->type == T_GEQ) {//same principle here
         fprintf(stdout, "POPS GF@righttrue\n");
         fprintf(stdout, "POPS GF@lefttrue\n");
         fprintf(stdout, "GT GF@$iftrue GF@lefttrue  GF@righttrue\n");
-        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(index_stack));
         fprintf(stdout, "EQ GF@$iftrue GF@lefttrue  GF@righttrue\n");
-        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(stackloh));
-        fprintf(stdout, "JUMP $else%d\n", *(int *)TopStack(stackloh));
+        fprintf(stdout, "JUMPIFEQ $if%i GF@$iftrue bool@true\n",*(int *)TopStack(index_stack));
+        fprintf(stdout, "JUMP $else%d\n", *(int *)TopStack(index_stack));
       }
       break;
     case (O_ID):
@@ -157,7 +157,7 @@ void CgenExpr(ASTExpression *expr, bool callfromfunc) {//we use postfix notation
           fprintf(stdout, "PUSHS nil@nil\n");
         } else if (item->data.token->type == T_INT) {
           fprintf(stdout, "PUSHS int@%i\n", item->data.token->value.integer);
-          if(item->i2f){//if expr have some f64 and int we need to change int to f64 
+          if(item->i2f){//if Expr have some f64 and int we need to change int to f64
             fprintf(stdout, "INT2FLOATS\n");
           }
         } else if (item->data.token->type == T_FLOAT) {
@@ -165,7 +165,7 @@ void CgenExpr(ASTExpression *expr, bool callfromfunc) {//we use postfix notation
         } else if (item->data.token->type == T_STR) {
           fprintf(stdout, "PUSHS string@%s\n",
                   item->data.token->value.string->str);
-        } else if (item->data.token->type == T_ID) {//also if var is i64 but expr is in f64, we need to make it also f64
+        } else if (item->data.token->type == T_ID) {//also if var is i64 but Expr is in f64, we need to make it also f64
           fprintf(stdout, "PUSHS LF@%s\n", item->data.token->value.string->str);
           if(item->i2f){
             fprintf(stdout, "INT2FLOATS\n");
@@ -189,7 +189,7 @@ void CgenExpr(ASTExpression *expr, bool callfromfunc) {//we use postfix notation
  * @return
  */
 void CgenReturnStat(ASTReturn *ret) {
-  if(ret->expr != NULL){//if it's not a void function, we need to proceed an expr
+  if(ret->expr != NULL){//if it's not a void function, we need to proceed an Expr
     CgenExpr(ret->expr, false);
     fprintf(stdout, "POPS GF@%%retval\n");
     fprintf(stdout, "POPFRAME\n");
@@ -236,7 +236,7 @@ void CgenWhile(ASTWhileStatement *cyklus){
   int *i = InvokeAlloc(sizeof(int));
   *i = ifcnt;
   ifcnt++;
-  PushStack(stackloh, i);
+  PushStack(index_stack, i);
   if(cyklus->notNullID == NULL){//if it's just while(sth){}
     fprintf(stdout, "LABEL $while%d\n", *i);
     CgenExpr(cyklus->expr, false);//every time we check here condition
@@ -260,7 +260,7 @@ void CgenWhile(ASTWhileStatement *cyklus){
     fprintf(stdout, "JUMP $while%d\n", *i);
     fprintf(stdout, "LABEL $else%d\n", *i);
   }
-  PopStack(stackloh);
+  PopStack(index_stack);
 }
 
 /**
@@ -274,7 +274,7 @@ void CgenIf(ASTIfStatement *ifelse) {
   int *i = InvokeAlloc(sizeof(int));//otherwise won't work if we put in stack a ifcnt, we'll have bad value
   *i = ifcnt;
   ifcnt++;
-  PushStack(stackloh, i);
+  PushStack(index_stack, i);
   if(ifelse->notNullID == NULL){
     CgenExpr(ifelse->expr, false);//here we check condition
     fprintf(stdout, "LABEL $if%d\n", *i);
@@ -300,7 +300,7 @@ void CgenIf(ASTIfStatement *ifelse) {
     CgenBody(ifelse->elseBody);
     fprintf(stdout, "LABEL $skip%d\n", *i);
   }
-  PopStack(stackloh);
+  PopStack(index_stack);
 }
 
 /**
@@ -358,17 +358,29 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
     return; 
   } else if (!strcmp(fcall->name, "ifj.ord")) { 
     CgenExpr(param->expr, true);
-    fprintf(stdout, "POPS GF@cnt\n");
     CgenExpr(param->next->expr, true);
     fprintf(stdout, "POPS GF@sym1\n");
+    fprintf(stdout, "POPS GF@cnt\n");
+    fprintf(stdout, "STRLEN GF@sym2 GF@cnt\n");
+    fprintf(stdout, "JUMPIFEQ $$zero%i$$ GF@sym2 int@0\n",ifcnt);
+    fprintf(stdout, "JUMPIFEQ $$zero%i$$ GF@sym2 GF@sym1\n",ifcnt);
+    fprintf(stdout, "LT GF@inputread GF@sym1 int@0\n");
+    fprintf(stdout, "JUMPIFEQ $$zero%i$$ GF@inputread bool@true\n",ifcnt);
+    fprintf(stdout, "GT GF@inputread GF@sym1 GF@sym2\n");
+    fprintf(stdout, "JUMPIFEQ $$zero%i$$ GF@inputread bool@true\n",ifcnt);
     fprintf(stdout, "STRI2INT GF@inputread GF@cnt GF@sym1\n");
-    fprintf(stdout, "PUSHS GF@inputread\n"); 
+    fprintf(stdout, "PUSHS GF@inputread\n");
+    fprintf(stdout, "JUMP $$skip%i$$\n",ifcnt); 
+    fprintf(stdout, "LABEL $$zero%i$$\n",ifcnt);
+    fprintf(stdout, "PUSHS int@0\n");
+    fprintf(stdout, "LABEL $$skip%i$$\n",ifcnt); 
+    ifcnt++;
     return; 
   } else if (!strcmp(fcall->name, "ifj.concat")) { 
     CgenExpr(param->expr, true);
-    fprintf(stdout, "POPS GF@sym1\n");
     CgenExpr(param->next->expr, true);
     fprintf(stdout, "POPS GF@sym2\n");
+    fprintf(stdout, "POPS GF@sym1\n");
     fprintf(stdout, "CONCAT GF@inputread GF@sym1 GF@sym2\n");
     fprintf(stdout, "PUSHS GF@inputread\n"); 
     return; 
@@ -395,11 +407,11 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
     return; 
   } else if (!strcmp(fcall->name, "ifj.substring")) { 
     CgenExpr(param->expr, true);
-    fprintf(stdout, "POPS GF@str1\n");   
-    CgenExpr(param->next->expr, true);
-    fprintf(stdout, "POPS GF@cnt\n");       
+    CgenExpr(param->next->expr, true); 
     CgenExpr(param->next->next->expr, true);
     fprintf(stdout, "POPS GF@length2\n");  
+    fprintf(stdout, "POPS GF@cnt\n");  
+    fprintf(stdout, "POPS GF@str1\n"); 
     fprintf(stdout, "STRLEN GF@length1 GF@str1\n");
     fprintf(stdout, "LT GF@inputread GF@cnt int@0\n");//check of all bad options, listed in documentation
     fprintf(stdout, "JUMPIFEQ $$null%i$$ GF@inputread bool@true\n",ifcnt);
@@ -407,6 +419,7 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
     fprintf(stdout, "JUMPIFEQ $$null%i$$ GF@inputread bool@true\n",ifcnt);
     fprintf(stdout, "GT GF@inputread GF@cnt GF@length2\n");
     fprintf(stdout, "JUMPIFEQ $$null%i$$ GF@inputread bool@true\n",ifcnt);
+    fprintf(stdout, "JUMPIFEQ $$empty%i$$ GF@cnt GF@length2\n",ifcnt);
     fprintf(stdout, "GT GF@inputread GF@length2 GF@length1\n");
     fprintf(stdout, "JUMPIFEQ $$null%i$$ GF@inputread bool@true\n",ifcnt);
     fprintf(stdout, "GT GF@inputread GF@cnt GF@length1\n");
@@ -423,6 +436,9 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
     fprintf(stdout, "LABEL $$end%i$$\n",ifcnt);
     fprintf(stdout, "PUSHS GF@str2\n");
     fprintf(stdout, "JUMP  $$skip%i$$\n",ifcnt);
+    fprintf(stdout, "LABEL $$empty%i$$\n",ifcnt);
+    fprintf(stdout, "PUSHS string@\n");
+    fprintf(stdout, "JUMP  $$skip%i$$\n",ifcnt);
     fprintf(stdout, "LABEL $$null%i$$\n",ifcnt);
     fprintf(stdout, "PUSHS nil@nil\n");
     fprintf(stdout, "LABEL $$skip%i$$\n",ifcnt);
@@ -430,9 +446,9 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
     return; 
   } else if (!strcmp(fcall->name, "ifj.strcmp")) { 
     CgenExpr(param->expr, true);
-    fprintf(stdout, "POPS GF@str1\n");
     CgenExpr(param->next->expr, true);
     fprintf(stdout, "POPS GF@str2\n");
+    fprintf(stdout, "POPS GF@str1\n");
     fprintf(stdout, "LT GF@inputread GF@str1 GF@str2\n");//here we check all possibilities 
     fprintf(stdout, "JUMPIFEQ $$minus%i$$ GF@inputread bool@true\n",ifcnt);
     fprintf(stdout, "EQ GF@inputread GF@str1 GF@str2\n");//step by step
@@ -453,13 +469,13 @@ void CgenFuncCall(ASTFuncCall *fcall, bool isdef, bool callfromfunc) {
   }
   if(callfromfunc)fprintf(stdout, "PUSHFRAME\n");//part of funexp extension
   fprintf(stdout, "CREATEFRAME\n");//temp frame for transmission a vars
-  int intik = 1;
+  int param_counter = 1;
   while (param != NULL) {//when we call we need to put variables to temp frame so we'll be able to use it in function that is written somewhere below
-    fprintf(stdout, "DEFVAR TF@%%%d\n", intik);
+    fprintf(stdout, "DEFVAR TF@%%%d\n", param_counter);
     CgenExpr(param->expr, true);
-    fprintf(stdout, "POPS TF@%%%d\n", intik);
+    fprintf(stdout, "POPS TF@%%%d\n", param_counter);
     fprintf(stdout,"\n");
-    intik++;
+    param_counter++;
     param = param->next;
   }
   fprintf(stdout, "CALL $$%s\n", fcall->name);

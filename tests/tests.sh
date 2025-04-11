@@ -45,7 +45,7 @@ function run_tests() {
     ------------INTERPRET TEST------------
     "
     for zig_file in examples/example*.zig; do
-      base_name=${zig_file%.zig} # Убираем расширение .zig
+      base_name=${zig_file%.zig}
 
       for input_file in "${base_name}"_*.in; do
         num=${input_file##*_}
@@ -113,18 +113,18 @@ function run_tests() {
     test "./base/base_var_unused.zig" 9
     # Type inference and compatibility errors
     test "./base/base_var_infer.zig" 8
-    test "./base/base_var_type.zig" 8
+    test "./base/base_var_type.zig" 7
     test "./base/base_implicit_conversion.zig" 7
 
     log_info "
     ------------EXPRESSION PARSER TESTS------------
     "
     test "./expression/expr_sem_1.zig" 0 # ?
-    test "./expression/expr_sem_2.zig" 0 # ?
+    test "./expression/expr_sem_2.zig" 7 # ?
     test "./expression/expr_type_1.zig" 7
     test "./expression/expr_type_2.zig" 7
     test "./expression/expr_type_3.zig" 7
-    test "./expression/expr_type_4.zig" 0 # ?
+    test "./expression/expr_type_4.zig" 7 # ?
     test "./expression/expr_type_5.zig" 7
     test "./expression/expr_syn_1.zig" 2
     test "./expression/expr_syn_2.zig" 2

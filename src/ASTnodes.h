@@ -7,6 +7,7 @@
  *
  * @brief Header file for AST nodes definition
  */
+
 #ifndef ASTNODES_H
 #define ASTNODES_H
 
@@ -107,7 +108,7 @@ typedef struct ASTVarDeclDef {
  * exprStack is in postfix notation for code generator
  */
 typedef struct ASTExpression {
-  stack *exprStack;     /**< Stack of expr struct items from expression parser */
+  stack *exprStack;     /**< Stack of Expr struct items from expression parser */
   DataType returnType;  /**< Data type of expression */
 } ASTExpression;
 

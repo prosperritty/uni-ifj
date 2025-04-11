@@ -13,10 +13,12 @@
 
 #include "ASTnodes.h"
 #include "cgen.h"
+#include "error.h"
 #include "expr_parser.h"
 #include "jm_string.h"
 #include "scanner.h"
 #include "symtable.h"
+#include "memory.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,10 +52,11 @@ void ParseReturn(ASTReturn *statement_return);
 DataType ParseExpr(ASTExpression *expression, bool additional_parenthesis, bool additional_comma);
 
 DataType ParseFuncCall(ASTFuncCall *func_call);
-DataType ParseCallParam(ASTParamCall **func_call_param, int* counter_args);
+DataType ParseCallParam(ASTParamCall **func_call_param);
 
 DataType ParseType();
 
 bool CheckNullableTypes(DataType base, DataType from_expression);
+bool CheckParamTypes(DataType expected, DataType actual);
 
 #endif

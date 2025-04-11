@@ -9,7 +9,7 @@
 
 #include "stack.h"
 
-/*
+/**
  * Initialize stack by setting pointer to the top to NULL
  *
  * @param s - pointer to stack
@@ -18,7 +18,7 @@
  */
 void InitStack(stack *s) { s->top = NULL; }
 
-/*
+/**
  * Pushes the pointer to the data into a given stack
  *
  * @param s - pointer to stack
@@ -37,7 +37,7 @@ int PushStack(stack *s, void *d) {
   return 0;
 }
 
-/*
+/**
  * Pops top value from stack
  *
  * @param s - pointer to stack
@@ -53,7 +53,7 @@ void PopStack(stack *s) {
   }
 }
 
-/*
+/**
  * Returns data from the top of the stack
  *
  * @param s - pointer to stack
@@ -67,7 +67,7 @@ void *TopStack(stack *s) {
   return NULL;
 }
 
-/*
+/**
  * Checks if given stack is empty (does not have a pointer to top)
  *
  * @param s - pointer to stack
@@ -76,7 +76,7 @@ void *TopStack(stack *s) {
  */
 bool IsEmptyStack(stack *s) { return (s->top == NULL); }
 
-/*
+/**
  * Frees stack with every item
  *
  * @param s - pointer to stack

@@ -9,9 +9,6 @@
  */
 
 #include "scanner.h"
-#include "error.h"
-#include "jm_string.h"
-#include <stdio.h>
 
 // Macro for 1 character token
 #define CASE_T(C, T)                                                           \
@@ -33,6 +30,7 @@ Scanner *scanner;
 
 /**
  * @brief Get keyword from string
+ *
  * @param str String to get keyword
  * @return Keyword or K_UNKNOWN
  */
@@ -71,6 +69,7 @@ Keyword GetKeyword(String *str) {
 
 /**
  * @brief Get escape code from unprintable char
+ *
  * @param c Char to get escape code
  * @return Escape code or NULL
  */
@@ -85,6 +84,7 @@ char *GetEscapeCode(char c) {
 
 /**
  * @brief Get escape sequence from char
+ *
  * @return Escape sequence or NULL
  */
 char *GetEscapeSequence() {
@@ -122,6 +122,7 @@ char *GetEscapeSequence() {
 
 /**
  * @brief Scanner initialization
+ *
  * @param f File
  */
 void ScannerInit(FILE *f) {
@@ -136,7 +137,7 @@ void ScannerInit(FILE *f) {
 /**
  * @brief Free all tokens and destroy scanner
  */
-void ScannerDest() {
+void ScannerDestroy() {
   if (file != stdin) {
     fclose(file);
   }
@@ -160,6 +161,7 @@ void ScannerDest() {
 
 /**
  * @brief Get the next token from the input file
+ *
  * @param token Pointer to the token structure to store the result
  * @return Status code (OK or LEXICAL_ERROR)
  */
@@ -170,8 +172,6 @@ int GetToken(Token *token) {
   token->keyword = K_UNKNOWN;
   State state = S_START;
 
-  // TODO: S_FLOAT, S_INT to 2-3 parts EBL∀N
-  // TODO: S_DIV to 2-3 parts EBL∀N
   // Main scanner loop
   do {
     c = getc(file);
@@ -215,10 +215,17 @@ int GetToken(Token *token) {
         break;
       }
 
-      case '0' ... '9': {
+      case '0': {
         str = StringNew();
         PushChar(str, c);
-        state = S_INT;
+        state = S_INT0;
+        break;
+      }
+
+      case '1' ... '9': {
+        str = StringNew();
+        PushChar(str, c);
+        state = S_INT1;
         break;
       }
 
@@ -253,7 +260,7 @@ int GetToken(Token *token) {
         return OK;
       }
       break;
-    case S_ID:
+    case S_ID: {
       if (isalnum(c) || c == '_') {
         PushChar(str, c);
       } else {
@@ -270,22 +277,15 @@ int GetToken(Token *token) {
         return OK;
       }
       break;
-    // TODO: separate S_INT to 2 states
-    case S_INT:
-      if (c >= '0' && c <= '9') {
-        // If leading zero return lexical error
-        if (str->str[0] == '0' && str->length == 1) {
-          FreeString(str);
-          return LEXICAL_ERROR;
-        }
+    }
+    case S_INT0: {
+      if (c == '.') {
         PushChar(str, c);
-      } else if (c == '.') {
-        PushChar(str, c);
-        state = S_FLOAT;
+        state = S_DOT;
       } else if (c == 'e' || c == 'E') {
         PushChar(str, c);
-        state = S_EXPS;
-      } else if (isalpha(c) || c == '_') {
+        state = S_EXP;
+      } else if (c >= '0' && c <= '9') {
         FreeString(str);
         return LEXICAL_ERROR;
       } else {
@@ -296,44 +296,77 @@ int GetToken(Token *token) {
         return OK;
       }
       break;
-    case S_FLOAT:
+    }
+    case S_INT1: {
+      if (c >= '0' && c <= '9') {
+        PushChar(str, c);
+      } else if (c == '.') {
+        PushChar(str, c);
+        state = S_DOT;
+      } else if (c == 'e' || c == 'E') {
+        PushChar(str, c);
+        state = S_EXP;
+      } else {
+        ungetc(c, file);
+        token->type = T_INT;
+        token->value.integer = atoi(str->str);
+        FreeString(str);
+        return OK;
+      }
+      break;
+    }
+    case S_DOT: {
+      if (c >= '0' && c <= '9') {
+        PushChar(str, c);
+        state = S_FLOAT_D;
+      } else {
+        FreeString(str);
+        return LEXICAL_ERROR;
+      }
+      break;
+    }
+    case S_FLOAT_D:
       if (c >= '0' && c <= '9') {
         PushChar(str, c);
       } else {
-          // If last char is '.' return lexical error
-          if (str->str[str->length - 1] == '.') {
-              FreeString(str);
-              return LEXICAL_ERROR;
-          }
-          if (c == 'e' || c == 'E') {
-              PushChar(str, c);
-              state = S_EXPS;
-          } else {
-              ungetc(c, file);
-              token->type = T_FLOAT;
-              token->value.real = atof(str->str);
-              FreeString(str);
-              return OK;
-          }
+        if (c == 'e' || c == 'E') {
+            PushChar(str, c);
+            state = S_EXP;
+        } else {
+            ungetc(c, file);
+            token->type = T_FLOAT;
+            token->value.real = atof(str->str);
+            FreeString(str);
+            return OK;
+        }
       }
       break;
-    case S_EXPS:
+    case S_EXP: {
       if (c == '+' || c == '-') {
         PushChar(str, c);
+        state = S_EXPS;
       } else if (c >= '1' && c <= '9') {
         PushChar(str, c);
+        state = S_FLOAT_E;
       } else {
         FreeString(str);
         return LEXICAL_ERROR;
       }
-      state = S_EXP;
       break;
-    case S_EXP:
+    }
+    case S_EXPS: {
       if (c >= '1' && c <= '9') {
         PushChar(str, c);
-      } else if (c == '.') {
+        state = S_FLOAT_E;
+      } else {
         FreeString(str);
         return LEXICAL_ERROR;
+      }
+      break;
+    }
+    case S_FLOAT_E: {
+      if (c >= '0' && c <= '9') {
+        PushChar(str, c);
       } else {
         ungetc(c, file);
         token->type = T_FLOAT;
@@ -342,6 +375,7 @@ int GetToken(Token *token) {
         return OK;
       }
       break;
+    }
     case S_GT:
       if (c == '=') {
         token->type = T_GEQ;
@@ -447,6 +481,11 @@ int GetToken(Token *token) {
         } else if (c == '\\') {
           break;
         } else {
+          size_t len = strlen(str->str);
+          if (len >= 4 && strcmp(&str->str[len - 4], "\\010") == 0) {
+            str->str[len - 4] = '\0';
+            str->length -= 4;
+          }
           ungetc(c, file);
           token->type = T_STR;
           token->value.string = str;
@@ -463,8 +502,12 @@ int GetToken(Token *token) {
   return 0;
 }
 
+/**
+ * @brief Generates token array from the input stream.
+ */
 void GenerateTokens() {
   Token *token = NULL;
+  // Token read
   while (true) {
     token = InvokeAlloc(sizeof(Token));
     token->value.string = NULL;
@@ -473,6 +516,7 @@ void GenerateTokens() {
     }
     scanner->tokens[scanner->size] = token;
     scanner->size += 1;
+    // Reallocate memory if needed
     if (scanner->size == scanner->capacity - 2) {
       scanner->capacity += 100;
       scanner->tokens =
@@ -483,145 +527,4 @@ void GenerateTokens() {
     token = NULL;
   }
   scanner->current_token = 0;
-}
-
-char *KeywordToString(Keyword keyword) {
-  switch (keyword) {
-  case K_CONST:
-    return "const";
-  case K_ELSE:
-    return "else";
-  case K_FN:
-    return "fn";
-  case K_IF:
-    return "if";
-  case K_I32:
-    return "i32";
-  case K_F64:
-    return "f64";
-  case K_NULL:
-    return "null";
-  case K_PUB:
-    return "pub";
-  case K_RETURN:
-    return "return";
-  case K_U8:
-    return "u8";
-  case K_VAR:
-    return "var";
-  case K_VOID:
-    return "void";
-  case K_WHILE:
-    return "while";
-  case K_IFJ:
-    return "ifj";
-  default:
-    return NULL;
-  }
-}
-
-void PrintToken(const char *key, Token *token) {
-  switch (token->type) {
-  // case T_COMMENT:
-  //     printf("%s: Comment = %s\n", key, token->value.string.str);
-  //     break;
-  case T_EOF:
-    printf("%s: EOF\n", key);
-    break;
-  case T_INT:
-    printf("%s: Integer value = %d\n", key, token->value.integer);
-    break;
-  case T_FLOAT:
-    printf("%s: Float value = %f\n", key, token->value.real);
-    break;
-  case T_STR:
-    printf("%s: String value = %s\n", key, token->value.string->str);
-    break;
-  case T_ID: {
-    const char *keyword_str = KeywordToString(token->keyword);
-    if (keyword_str) {
-      printf("%s: Keyword = %s\n", key, keyword_str);
-    } else {
-      printf("%s: Unknown Identifier = %s\n", key, token->value.string->str);
-    }
-    break;
-  }
-  case T_DOT:
-    printf("%s: Dot\n", key);
-    break;
-  case T_SEMICOLON:
-    printf("%s: Semicolon\n", key);
-    break;
-  case T_COLON:
-    printf("%s: Colon\n", key);
-    break;
-  case T_COMMA:
-    printf("%s: Comma\n", key);
-    break;
-  case T_OPAREN:
-    printf("%s: Open Parenthesis\n", key);
-    break;
-  case T_CPAREN:
-    printf("%s: Close Parenthesis\n", key);
-    break;
-  case T_OSQUARE:
-    printf("%s: Open Square Bracket\n", key);
-    break;
-  case T_CSQUARE:
-    printf("%s: Close Square Bracket\n", key);
-    break;
-  case T_OCURLY:
-    printf("%s: Open Curly Bracket\n", key);
-    break;
-  case T_CCURLY:
-    printf("%s: Close Curly Bracket\n", key);
-    break;
-  case T_PIPE:
-    printf("%s: Pipe\n", key);
-    break;
-  case T_AT:
-    printf("%s: At Symbol\n", key);
-    break;
-  case T_QUESTM:
-    printf("%s: Question Mark\n", key);
-    break;
-  case T_PLUS:
-    printf("%s: Plus\n", key);
-    break;
-  case T_SUB:
-    printf("%s: Subtraction\n", key);
-    break;
-  case T_MUL:
-    printf("%s: Multiplication\n", key);
-    break;
-  case T_DIV:
-    printf("%s: Division\n", key);
-    break;
-  case T_LT:
-    printf("%s: Less Than\n", key);
-    break;
-  case T_GT:
-    printf("%s: Greater Than\n", key);
-    break;
-  case T_ASSIGN:
-    printf("%s: Assignment\n", key);
-    break;
-  case T_EQ:
-    printf("%s: Equals\n", key);
-    break;
-  case T_NEQ:
-    printf("%s: Not Equals\n", key);
-    break;
-  case T_LEQ:
-    printf("%s: Less Than or Equal\n", key);
-    break;
-  case T_GEQ:
-    printf("%s: Greater Than or Equal\n", key);
-    break;
-  case T_UNDERSCORE:
-    printf("%s: Underscore\n", key);
-    break;
-  default:
-    printf("%s: Unknown Token type = %d\n", key, token->type);
-  }
 }

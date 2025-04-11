@@ -32,7 +32,7 @@ typedef enum {
   O_DOLLAR
 } precedenceType;
 
-typedef struct expr_item {
+typedef struct Expr_data {
   precedenceType type;
   bool isFunction; //For code generator, which will decide what it has to use from union
   bool i2f; //For code generator, which will cast i32 to f64
@@ -40,23 +40,22 @@ typedef struct expr_item {
     Token *token;
     ASTFuncCall *funcCall;
   } data;
-} expr_data;
+} Expr_data;
 
-typedef struct expr {
+typedef struct Expr {
   bool isTerminal;
   bool isLess;
   bool isLiteral;
   bool isKnownConstant;
-  DataType returnType; //Type of current expr item
-  expr_data *item;
-} expr;
+  DataType returnType; //Type of current Expr item
+  Expr_data *item;
+} Expr;
 
-expr* GetTopTerminal(stack* pushdown);
+Expr* GetTopTerminal(stack* pushdown);
 void MakeTopTerminalLess(stack *pushdown);
 precedenceType GetType(bool additional_parenthesis, int *count_parentheses, bool additional_comma);
-expr *CreateExprItem(bool additional_parenthesis, int *count_parentheses, bool additional_comma);
-expr* shift(expr *right, stack* pushdown);
-void Reduce(stack* pushdown, stack* infix);
+Expr *CreateExprItem(bool additional_parenthesis, int *count_parentheses, bool additional_comma);
+void Reduce(stack* pushdown, stack* postfix);
 DataType PrecedeneParseExpression(stack **output_stack, bool parenthesis, bool comma);
 
 #endif

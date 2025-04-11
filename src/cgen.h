@@ -22,7 +22,6 @@
 #include "symtable.h"
 #include <stdbool.h>
 
-
 void CgenStart(ASTStart *code);
 
 void CgenParam(ASTParam *param);

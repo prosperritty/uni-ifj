@@ -13,13 +13,16 @@
 #include <stdio.h>
 
 int main() {
-
   FILE *file = stdin;
+
   AllocatorInit();
   ScannerInit(file);
+
   GenerateTokens();
   Parse();
-  ScannerDest();
+
+  ScannerDestroy();
+  SymtableClear();
   AllocatorDestroy();
 
   return 0;

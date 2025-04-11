@@ -1,5 +1,5 @@
-// Invalid numeric literal
+// Invalid hexadecimal escape sequence
 const ifj = @import("ifj24.zig");
 pub fn main() void {
-    var num = 0x12QZ;
+    var str = "Invalid hex escape \xZZ sequence";
 }

@@ -23,7 +23,7 @@ pub fn decrement(n: i32, m: i32) i32 {
 }
 
 // Definice funkce pro vypocet hodnoty faktorialu
-fn factorial(n: i32) i32 {
+pub fn (n: i32) i32 {
     var result: i32 = 0;
     if (n < 2) {
         result = 1;

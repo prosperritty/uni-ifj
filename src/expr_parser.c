@@ -38,9 +38,9 @@ void GetNextTokenExpr() {
  * @param pushdown pushdown stack
  * @return Top terminal from stack
  */
-expr* GetTopTerminal(stack* pushdown) {
+Expr* GetTopTerminal(stack* pushdown) {
   stackItem* current = pushdown->top;
-  while (((expr*)(current->data))->isTerminal == false) {
+  while (((Expr*)(current->data))->isTerminal == false) {
     current = current->next;
   }
   return current->data;
@@ -52,12 +52,12 @@ expr* GetTopTerminal(stack* pushdown) {
  * @param pushdown pushdown stack
  */
 void MakeTopTerminalLess(stack *pushdown) {
-  expr* top = GetTopTerminal(pushdown);
+  Expr* top = GetTopTerminal(pushdown);
   top->isLess = true;
 }
 
 /**
- * @brief Copy token from expr_token to use it in expr_data structure
+ * @brief Copy token from expr_token to use it in Expr_data structure
  *
  * @return copied token
  */
@@ -127,17 +127,17 @@ precedenceType GetType(bool additional_parenthesis, int *count_parentheses, bool
 }
 
 /**
- * @brief Creates new expr item from current token
+ * @brief Creates new Expr item from current token
  *
  * @param additional_parenthesis if expression is parsing in if/while/function params
  * @param count_parentheses count of parentheses
  * @param additional_comma if expression is parsing in function params
  *
- * @return new expr item
+ * @return new Expr item
  */
-expr *CreateExprItem(bool additional_parenthesis, int *count_parentheses, bool additional_comma) {
-  expr* expression = InvokeAlloc(sizeof(expr));
-  expr_data *item = InvokeAlloc(sizeof(expr_data));
+Expr *CreateExprItem(bool additional_parenthesis, int *count_parentheses, bool additional_comma) {
+  Expr* expression = InvokeAlloc(sizeof(Expr));
+  Expr_data *item = InvokeAlloc(sizeof(Expr_data));
 
   expression->isLess = false;
   expression->isTerminal = true;
@@ -206,18 +206,18 @@ expr *CreateExprItem(bool additional_parenthesis, int *count_parentheses, bool a
 }
 
 /**
- * @brief Perform operation on 1 or 3 expr items
+ * @brief Perform operation on 1 or 3 Expr items
  * And return only one back on pushdown stack to continue on semantic checks
  *
  * @param pushdown pusdown stack
- * @param infix infix stack
+ * @param postfix postfix stack
  */
-void Reduce(stack* pushdown, stack* infix) {
+void Reduce(stack* pushdown, stack* postfix) {
   //Get items for reduce
-  expr* ontop = TopStack(pushdown);
-  expr* lhs=NULL;
-  expr* op =NULL;
-  expr* rhs=NULL;
+  Expr* ontop = TopStack(pushdown);
+  Expr* lhs=NULL;
+  Expr* op =NULL;
+  Expr* rhs=NULL;
   int until_less;
 
   for (until_less = 0; until_less < 3; until_less++) {
@@ -234,7 +234,7 @@ void Reduce(stack* pushdown, stack* infix) {
     //i -> E
     rhs->isTerminal = false;
     ontop->isLess = false;
-    PushStack(infix, rhs);
+    PushStack(postfix, rhs);
     PushStack(pushdown, rhs);
   }
   else if(until_less == 1) {
@@ -268,7 +268,7 @@ void Reduce(stack* pushdown, stack* infix) {
 
       op->isKnownConstant = lhs->isKnownConstant && rhs->isKnownConstant;
       op->isLiteral = lhs->isLiteral && rhs->isLiteral;
-      PushStack(infix, op);
+      PushStack(postfix, op);
     }
     // == != >= <= ...
     else if(op->item->type == O_RELATIONAL) {
@@ -299,7 +299,7 @@ void Reduce(stack* pushdown, stack* infix) {
       else InvokeExit(TYPE_ERROR);
 
       op->returnType = ST_BOOL;
-      PushStack(infix, op);
+      PushStack(postfix, op);
     }
     else InvokeExit(SYNTAX_ERROR);
     ontop->isLess = false;
@@ -320,17 +320,17 @@ DataType PrecedeneParseExpression(stack **output_stack, bool parenthesis, bool c
   DataType return_type;
   int count_parentheses = 0;
   stack *pushdown = InvokeAlloc(sizeof(stack));
-  stack *infix = InvokeAlloc(sizeof(stack));
+  stack *postfix = InvokeAlloc(sizeof(stack));
 
   isknown_return = true;
   bool expr_has_f64 = false;
 
-  InitStack(infix);
+  InitStack(postfix);
   InitStack(pushdown);
 
   //$ on bottom always
-  expr *left = InvokeAlloc(sizeof(expr));
-  left->item = InvokeAlloc(sizeof(expr_data));
+  Expr *left = InvokeAlloc(sizeof(Expr));
+  left->item = InvokeAlloc(sizeof(Expr_data));
   left->isLess = false;
   left->isTerminal = true;
   left->item->type = O_DOLLAR;
@@ -339,16 +339,18 @@ DataType PrecedeneParseExpression(stack **output_stack, bool parenthesis, bool c
 
   //get first token of expression
   GetNextTokenExpr();
-  expr *right = CreateExprItem(parenthesis, &count_parentheses, comma);
+  Expr *right = CreateExprItem(parenthesis, &count_parentheses, comma);
 
   while (true) {
     left = GetTopTerminal(pushdown);
     char precedence = precedence_lookup[left->item->type][right->item->type];
 
     //Pushdown stack must be $E in the end
+    //But empty expression error is handling in other functions
     if (left->item->type == O_DOLLAR && right->item->type == O_DOLLAR) {
-      expr* final = TopStack(pushdown);
+      Expr* final = TopStack(pushdown);
       PopStack(pushdown);
+      //If expression is empty return type will be ST_NOT_DEFINED
       return_type = final->returnType;
       if(final->item->type != O_DOLLAR){
         isknown_return = final->isKnownConstant;
@@ -367,7 +369,7 @@ DataType PrecedeneParseExpression(stack **output_stack, bool parenthesis, bool c
       }
       case '>': {
         if(left->returnType == ST_F64) expr_has_f64 = true;
-        Reduce(pushdown, infix);
+        Reduce(pushdown, postfix);
         break;
       }
       case '=':
@@ -380,17 +382,17 @@ DataType PrecedeneParseExpression(stack **output_stack, bool parenthesis, bool c
       }
   }
 
-  //Flip over infix stack so output_stack will have expression in postfix notation
-  while (!IsEmptyStack(infix)) {
-    expr *expr_item = TopStack(infix);
+  //Flip over postfix stack so postfix notation in output_stack will be easy to generate
+  while (!IsEmptyStack(postfix)) {
+    Expr *expr_item = TopStack(postfix);
     if(expr_has_f64 && expr_item->returnType == ST_I32) expr_item->item->i2f = true;
     else expr_item->item->i2f = false;
-    PopStack(infix);
+    PopStack(postfix);
     PushStack((*output_stack), expr_item->item);
     InvokeFree(expr_item);
   }
 
-  FreeStack(infix);
+  FreeStack(postfix);
   FreeStack(pushdown);
 
   return return_type;

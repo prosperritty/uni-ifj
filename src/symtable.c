@@ -67,7 +67,6 @@ symtable_item_data *SymtableAdd(char *key, SymbolType type) {
   (*global_table)[index]->busy = true;             // Set busy
   // Fill data
   symtable_item_data *data = (*global_table)[index]->data;
-  data->name = key;     // Use keys as names
   data->symType = type; // Define the type of item to be added right away
   // Based on the type fill data with initial values
   if (type == ST_FUNC) {

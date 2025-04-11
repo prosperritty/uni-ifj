@@ -1,3 +1,4 @@
+// Program 21: Chyby
 const ifj = @import("ifj24.zig");
 
 pub fn main() void {

@@ -60,8 +60,11 @@ typedef enum State {
   S_EQ,
   S_NEQ,
   S_DIV,
-  S_INT,
-  S_FLOAT,
+  S_INT0,
+  S_INT1,
+  S_DOT,
+  S_FLOAT_E,
+  S_FLOAT_D,
   S_EXPS,
   S_EXP,
   S_STR,
@@ -118,10 +121,7 @@ void ScannerInit(FILE *f);
 Keyword GetKeyword(String *str);
 char *GetEscapeSequence();
 int GetToken(Token *token);
-void ScannerDest();
+void ScannerDestroy();
 void GenerateTokens();
-
-void PrintToken(const char *key, Token *token);
-char *KeywordToString(Keyword keyword);
 
 #endif // SCANNER_H

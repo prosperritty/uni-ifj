@@ -20,8 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_SIZE 16383 // 2^14 - 1
-#define C 1            // Linear probing step size
+#define MAX_SIZE 3001 // Prime number (around 2000 IDs + minimum 25%)
+#define C 1           // Linear probing step size
 
 typedef enum {
   ST_FUNC,
@@ -65,7 +65,6 @@ typedef struct func_data {
 
 typedef struct {
   SymbolType symType;
-  char *name;
   union {
     var_data var;
     func_data func;

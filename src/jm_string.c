@@ -9,7 +9,8 @@
 
 #include "jm_string.h"
 
-/** @brief Allocate new string
+/**
+ * @brief Allocate new string
  */
 String *StringNew(void) {
   String *string = InvokeAlloc(sizeof(String));
@@ -21,6 +22,7 @@ String *StringNew(void) {
 }
 
 /** @brief Push char to string
+ *
  * @param self String
  * @param c Char to push
  */
@@ -42,6 +44,7 @@ void PushChar(String *self, char c) {
 
 /**
  * @brief Push string to string
+ *
  * @param self String
  * @param str String to push
  */
@@ -55,6 +58,7 @@ void PushString(String *self, const char *str) {
 
 /**
  * @brief Free string
+ *
  * @param self String
  */
 void FreeString(String *self) {
@@ -65,8 +69,10 @@ void FreeString(String *self) {
 
 /**
  * @brief Check if strings are equal
+ *
  * @param self String
  * @param other Other string
+ *
  * @return True if strings are equal
  */
 int StringEquals(String *self, const char *other) {

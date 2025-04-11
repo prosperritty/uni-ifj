@@ -1,6 +1,6 @@
-// Invalid character in \x
+// Invalid character in identifier
 const ifj = @import("ifj24.zig");
 pub fn main() void {
-    var invalid: []u8 = ifj.string("\xFG"); // Invalid character '@' in identifier
+    var invalid: f64 = 1.23e; // Invalid character '@' in identifier
 }
 
